@@ -17,7 +17,7 @@ class Handler(BaseHandler):
         }
     }
 
-    @every(minutes=24 * 60)
+    @every(minutes=4 * 60)
     def on_start(self):
         self.crawl('http://blog.csdn.net', callback=self.index_page)
 
@@ -27,7 +27,7 @@ class Handler(BaseHandler):
                category = each.text()
          
                base_url = each.attr.href.replace('newarticle.html', '')
-               for post_fix in ['newarticle.html', 'hotarticle.html']:
+               for post_fix in ['newarticle', 'hotarticle.html']:
                    subcategory = post_fix.replace('.html', '')
                    params = {'category': category, 'subcategory':subcategory}
                    self.crawl(base_url+post_fix, callback=self.search_page, save=params)
@@ -46,30 +46,34 @@ class Handler(BaseHandler):
 
     @config(priority=2)
     def list_page(self, response):
-        for each in response.doc('dd > .tracking-ad > a').items():
-            self.crawl(each.attr.href, callback=self.detail_page, save=response.save)
-
+        try:
+            for each in response.doc('dd > .tracking-ad > a').items():
+                self.crawl(each.attr.href, callback=self.detail_page, save=response.save)
+        except:
+            pass
 
     @config(priority=3)
     def detail_page(self, response):
         tags = list(response.doc('.article_l a').items())
         tag_list = [item.text() for item in tags]
         content = response.doc('.article_content').text()
+ 
+        try:
+            time_str = response.doc('.link_postdate').text()
+            create_time = datetime.strptime(time_str, '%Y-%m-%d %H:%M')
+            fetch_time = datetime.now()
+            create_time = int(create_time.timestamp())
+            fetch_time = int(fetch_time.timestamp())
 
-        time_str = response.doc('.link_postdate').text()
-        create_time = datetime.strptime(time_str, '%Y-%m-%d %H:%M')
-        fetch_time = datetime.now()
-        create_time = int(create_time.timestamp())
-        fetch_time = int(fetch_time.timestamp())
-
-        return {
-            "url": response.url,
-            "title": response.doc('h1 a').text(),
-            'tags':  tag_list,
-            'category': response.save.get('category'),
-            'subcategory': response.save.get('subcategory'),
-            'content': content,
-            'fetch_time': fetch_time,
-            'create_time': create_time,
-        }
-
+            return {
+                "url": response.url,
+                 "title": response.doc('h1 a').text(),
+                 'tags':  tag_list,
+                 'category': response.save.get('category'),
+                 'subcategory': response.save.get('subcategory'),
+                 'content': content,
+                 'fetch_time': fetch_time,
+                  'create_time': create_time,
+            }
+        except:
+                pass
